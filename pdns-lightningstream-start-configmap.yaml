@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-lightningstream-start
+  namespace: pdns
+data:
+  start.sh: |
+    #!/bin/sh
+
+    if [ ${PDNS_LSTREAM_SLEEP}_ == _ ]; then
+        echo "no sleep time set"
+    else
+        sleep ${PDNS_LSTREAM_SLEEP}
+    fi
+
+    if [ ${PDNS_LSTREAM_DNS_SERVER}_ == _ ]; then
+        echo "no DNS server set"
+    else
+        eval DNS=\$$PDNS_LSTREAM_DNS_SERVER
+        echo "ServiceIP: $DNS"
+        echo "PodIP: $PDNS_POD_IP"
+        dig @$PDNS_POD_IP $PDNS_LSTREAM_DOMAIN $PDNS_QUERY_TYPE
+    fi
+
+    # seq 210 | xargs -Iz echo "Generating pids. Count z"
+    /app/lightningstream --config /lightningstream.yaml --minimum-pid 200 --instance ${HOSTNAME}-lstream sync

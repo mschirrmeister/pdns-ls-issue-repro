@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-lightningstream
+  namespace: pdns
+data:
+  lightningstream.yaml: |
+    instance: lmdbsync
+    storage_poll_interval: 10s
+    lmdb_poll_interval: 10s
+    storage_force_snapshot_interval: 4h
+
+    lmdbs:
+      main:
+        path: /var/lib/powerdns/pdns.lmdb
+        schema_tracks_changes: true
+        options:
+          no_subdir: true
+          create: false
+      shard:
+        path: /var/lib/powerdns/pdns.lmdb-0
+        schema_tracks_changes: true
+        options:
+          no_subdir: true
+          create: false
+
+    storage:
+      type: s3
+      options:
+        access_key: pdns
+        secret_key: pdns#112
+        bucket: lightningstream
+        endpoint_url: http://minio.minio.svc.cluster.local:9000
+        create_bucket: true
+      cleanup:
+        enabled: true
+        interval: 15m
+        must_keep_interval: 24h
+        remove_old_instances_interval: 168h
+
+    http:
+      address: ":8500"
+
+    log:
+      level: info
+      format: human
+      timestamp: short

@@ -1,0 +1,119 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio
+  labels:
+    name: minio
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio
+  namespace: minio
+  labels:
+    app: minio
+data:
+  MINIO_ROOT_USER: cGRuczEyMzQ=
+  MINIO_ROOT_PASSWORD: cGRuczEyMzQ=
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: minio-pv-data
+  namespace: minio
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  claimRef:
+    namespace: minio
+    name: minio-pvc-data
+  storageClassName: local-path
+  local:
+    path: /mnt/localstorage/minio
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k3spdnstest.home.marco.cx
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc-data
+  namespace: minio
+spec:
+  storageClassName: "longhorn"
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: minio-pv-data
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  namespace: minio
+  name: minio
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2024-05-10T01-41-38Z
+          args: ['server', '/data', '--console-address', ':9001']
+          ports:
+            - name: minio
+              containerPort: 9000
+          volumeMounts:
+            - name: minio-pv-data
+              mountPath: /data
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: MINIO_ROOT_PASSWORD
+      volumes:
+        - name: minio-pv-data
+          persistentVolumeClaim:
+            claimName: minio-pvc-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      name: minio
+      port: 9000
+    - protocol: TCP
+      name: minio-console
+      port: 9001
+  selector:
+    app: minio

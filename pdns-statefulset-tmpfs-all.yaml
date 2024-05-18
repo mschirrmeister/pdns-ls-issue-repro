@@ -1,0 +1,132 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pdns-ss
+  namespace: pdns
+  labels:
+    app.kubernetes.io/name: pdns-ss
+spec:
+  persistentVolumeClaimRetentionPolicy:
+    whenScaled: Retain
+    whenDeleted: Delete
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pdns-ss
+  serviceName: pdns-ss
+  template:
+    metadata:
+      labels:
+        app: pdns-ss
+        app.kubernetes.io/name: pdns-ss
+    spec:
+      securityContext:
+        fsGroup: 953
+        runAsUser: 953
+        runAsGroup: 953
+      containers:
+      - name: pdns-ss
+        # image: powerdns/pdns-auth-49:4.9.0
+        image: mschirrmeister/pdns-auth:master
+        env:
+        - name: TZ
+          value: "Europe/Berlin"
+        ports:
+          - containerPort: 53
+            protocol: TCP
+          - containerPort: 53
+            protocol: UDP
+          - containerPort: 8081
+            protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: "/etc/powerdns/pdns.conf"
+          subPath: pdns.conf
+        - name: pdns-ss-vol
+          mountPath: /var/lib/powerdns
+      - name: pdns-lightningstream
+        image: mschirrmeister/powerdns-lightningstream:v0.4.3
+        # imagePullPolicy: Always
+        env:
+        - name: PDNS_LSTREAM_DNS_SERVER
+          value: PDNS_SS_SERVICE_HOST
+        - name: PDNS_LSTREAM_SLEEP
+          value: "1"
+        - name: PDNS_LSTREAM_DOMAIN
+          value: "foobar.baz"
+        - name: PDNS_QUERY_TYPE
+          value: SOA
+        - name: PDNS_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        # Use this to start lightningstream directly
+        command: [ "/app/lightningstream" ]
+        args: [ "--config", "/lightningstream.yaml", "--minimum-pid", "200", "sync" ]
+        # Use this to bring up the container, where you can login to start it manually for debugging purposes
+        # command: [ "tail" ]
+        # args: [ "-f", "/dev/null"]
+        volumeMounts:
+        - name: pdns-ss-vol
+          mountPath: /var/lib/powerdns
+          readOnly: false
+        - name: config-lightningstream
+          mountPath: "/lightningstream.yaml"
+          subPath: lightningstream.yaml
+        - name: config-lightningstream-start
+          mountPath: "/app/start.sh"
+          subPath: start.sh
+      restartPolicy: Always
+      volumes:
+      - name: config
+        configMap:
+          name: app-config-pdns-auth
+          items:
+          - key: "pdns.conf"
+            path: "pdns.conf"
+      - name: config-lightningstream
+        configMap:
+          name: app-config-lightningstream
+          items:
+          - key: "lightningstream.yaml"
+            path: "lightningstream.yaml"
+      - name: config-lightningstream-start
+        configMap:
+          name: app-config-lightningstream-start
+          items:
+          - key: "start.sh"
+            path: "start.sh"
+          defaultMode: 0755
+      - name: pdns-ss-vol
+        # Use this if you want to it stored on disk
+        # Data will live here
+        # /var/lib/kubelet/pods/a34b0337-7d5c-44d6-9e88-1cfb39668291/volumes/kubernetes.io~empty-dir/pdns-ss-vol/pdns.lmdb
+        # emptyDir: {}
+        # Enable this if you want to use "tmpfs" (memory)
+        emptyDir:
+          medium: Memory
+          sizeLimit: 200Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pdns-ss
+  namespace: pdns
+spec:
+  type: ClusterIP
+  selector:
+    app: pdns-ss
+  ports:
+    - name: dnstcp
+      protocol: TCP
+      port: 53
+      targetPort: 53
+    - name: dnsudp
+      protocol: UDP
+      port: 53
+      targetPort: 53
+    - name: pdnshttp
+      protocol: TCP
+      port: 8081
+      targetPort: 8081

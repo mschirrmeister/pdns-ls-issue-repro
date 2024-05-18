@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-pdns-auth
+  namespace: pdns
+data:
+  pdns.conf: |
+    primary=yes
+    allow-notify-from=0.0.0.0
+    allow-axfr-ips=127.0.0.1
+    api=yes
+    api-key=secret
+    config-dir=/etc/powerdns
+    default-soa-content=a.misconfigured.dns.server.invalid hostmaster.@ 0 10800 3600 604800 3600
+    default-ttl=3600
+    default-ksk-algorithm=ed25519
+    default-zsk-algorithm=ed25519
+    include-dir=/etc/powerdns/pdns.d
+    load-modules=liblmdbbackend.so
+    launch=lmdb
+    lmdb-filename=/var/lib/powerdns/pdns.lmdb
+    lmdb-shards=1
+    lmdb-sync-mode=nometasync
+    lmdb-schema-version=5
+    lmdb-random-ids=yes
+    lmdb-map-size=1000
+    lmdb-flag-deleted=yes
+    lmdb-lightning-stream=yes
+    # launch=gsqlite3
+    # gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
+    local-address=0.0.0.0,::
+    log-dns-details=yes
+    log-dns-queries=yes
+    log-timestamp=yes
+    # 0 = emergency, 1 = alert, 2 = critical, 3 = error, 4 = warning, 5 = notice, 6 = info, 7 = debug
+    loglevel=7
+    loglevel-show=yes
+    query-logging=yes
+    # resolver=blocky.blocky.svc.cluster.local
+    # resolver=10.43.226.25
+    resolver=1.1.1.1
+    # server-id
+    version-string=anonymous
+    webserver=yes
+    webserver-allow-from=127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,192.0.0.0/24
+    webserver-hash-plaintext-credentials=yes
+    # one of "none", "normal", "detailed"
+    webserver-loglevel=normal
+    webserver-address=0.0.0.0
+    webserver-port=8081
+    webserver-password=secret2
+    zone-cache-refresh-interval=0
+    zone-metadata-cache-ttl=0
